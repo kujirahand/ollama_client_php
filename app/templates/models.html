@@ -1,0 +1,30 @@
+        <!-- Main Application -->
+        <div id="mainApp" class="content">
+            <div class="nav-tabs">
+                <button class="nav-tab" onclick="showTab('chat')">💬 チャット</button>
+                <button class="nav-tab" onclick="showTab('templates')">📝 テンプレート</button>
+                <button class="nav-tab active" onclick="showTab('models')">🧠 モデル</button>
+                <button class="nav-tab" onclick="showTab('settings')">⚙️ 設定</button>
+            </div>
+
+            <!-- Models Tab -->
+            <div id="modelsTab" class="tab-content active">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h3>利用可能なモデル</h3>
+                    <button class="btn" onclick="loadModels()">モデル更新</button>
+                </div>
+
+                <div id="modelList" class="model-grid">
+                    <!-- モデル一覧がここに表示されます -->
+                </div>
+
+                <div id="modelInfo" style="display: none; margin-top: 20px; padding: 20px; background: #f7fafc; border-radius: 8px;">
+                    <h4>モデル詳細情報</h4>
+                    <pre id="modelInfoContent" style="background: white; padding: 15px; border-radius: 4px; overflow-x: auto;"></pre>
+                    <button class="btn btn-secondary" onclick="hideModelInfo()">閉じる</button>
+                </div>
+            </div>
+        </div>
+
+    <!-- JavaScript files for models page -->
+    <script src="static/js/models.js"></script>

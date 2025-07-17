@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{title}</title>
+    <link rel="stylesheet" href="static/css/style.css">
+    <script src="static/js/common.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="user-info">
+                <h1>Ollama Chat Client</h1>
+                <span>ようこそ、<span id="username">ゲスト</span>さん</span>
+                <div class="ollama-status">
+                    <span class="status-indicator" id="statusIndicator"></span>
+                    <span>Ollama: <span id="ollamaStatus">接続確認中...</span></span>
+                </div>
+                {if:show_logout}<button class="btn btn-secondary" onclick="logout()">ログアウト</button>{/if:show_logout}
+            </div>
+        </div>

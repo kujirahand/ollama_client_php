@@ -1,0 +1,111 @@
+        <!-- Main Application -->
+        <div id="mainApp" class="content">
+            <div class="nav-tabs">
+                <button class="nav-tab active" onclick="showTab('chat')">💬 チャット</button>
+                <button class="nav-tab" onclick="showTab('templates')">📝 テンプレート</button>
+                <button class="nav-tab" onclick="showTab('models')">🧠 モデル</button>
+                <button class="nav-tab" onclick="showTab('settings')">⚙️ 設定</button>
+            </div>
+
+            <!-- Chat Tab -->
+            <div id="chatTab" class="tab-content active">
+                <div class="chat-controls">
+                    <select id="modelSelect" onchange="saveSelectedModel(this.value)">
+                        <option value="">モデルを選択...</option>
+                    </select>
+                    <select id="templateSelect" onchange="insertTemplate()">
+                        <option value="">テンプレートを選択...</option>
+                    </select>
+                    <label style="display: flex; align-items: center; gap: 5px; white-space: nowrap;">
+                        <input type="checkbox" id="streamMode" checked onchange="saveStreamMode(this.checked)">
+                        ストリーミング
+                    </label>
+                    <button class="btn btn-secondary" onclick="loadChatHistory()">履歴更新</button>
+                    <button class="btn btn-danger" onclick="clearChat()">チャットクリア</button>
+                </div>
+
+                <div class="input-area">
+                    <textarea id="messageInput"
+                              placeholder="メッセージを入力してください...([Shift]+[Enter]で送信)" 
+                              onkeydown="handleKeyDown(event)"
+                              oncompositionstart="handleCompositionStart(event)"
+                              oncompositionend="handleCompositionEnd(event)"></textarea>
+                    <button class="btn" onclick="sendMessage()" id="sendButton">
+                        <span id="sendText">送信</span>
+                        <span id="sendLoading" class="loading" style="display: none;"></span>
+                    </button>
+                </div>
+                
+                <div id="chatArea" class="chat-area">
+                    <div class="message assistant">
+                        <div class="message-header">🤖 Assistant</div>
+                        <div class="message-content">こんにちは！何についてお話ししましょうか？</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Templates Tab -->
+            <div id="templatesTab" class="tab-content">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h3>プロンプトテンプレート</h3>
+                    <button class="btn" onclick="showTemplateForm()">新規作成</button>
+                </div>
+
+                <div id="templateForm" style="display: none; margin-bottom: 20px; padding: 20px; background: #f7fafc; border-radius: 8px;">
+                    <h4 id="templateFormTitle">新しいテンプレート</h4>
+                    <div class="form-group">
+                        <label for="templateTitle">タイトル</label>
+                        <input type="text" id="templateTitle">
+                    </div>
+                    <div class="form-group">
+                        <label for="templateContent">内容</label>
+                        <textarea id="templateContent" rows="5"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="templateModel">対象モデル（オプション）</label>
+                        <select id="templateModel">
+                            <option value="">すべてのモデル</option>
+                        </select>
+                    </div>
+                    <button class="btn" onclick="saveTemplate()">保存</button>
+                    <button class="btn btn-secondary" onclick="cancelTemplate()">キャンセル</button>
+                </div>
+
+                <div id="templateList" class="template-list">
+                    <!-- テンプレート一覧がここに表示されます -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 初回設定モーダル -->
+        <div id="initialSetupModal" class="modal">
+            <div class="modal-content">
+                <h2>🎉 ようこそ！</h2>
+                <p>初回ログインありがとうございます。<br>
+                まず、デフォルトで使用するLLMモデルを選択してください。</p>
+                
+                <div id="initialSetupMessage"></div>
+                
+                <div class="form-group">
+                    <label for="initialDefaultModel">デフォルトモデルを選択</label>
+                    <select id="initialDefaultModel">
+                        <option value="">モデルを選択してください...</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="initialOllamaUrl">Ollama URL（必要に応じて変更）</label>
+                    <input type="text" id="initialOllamaUrl" value="http://localhost:11434">
+                </div>
+                
+                <div class="modal-buttons">
+                    <button class="btn-modal primary" onclick="saveInitialSetup()">設定を保存</button>
+                    <button class="btn-modal secondary" onclick="skipInitialSetup()">後で設定</button>
+                </div>
+            </div>
+        </div>
+
+    <!-- JavaScript files for chat page -->
+    <script src="static/js/auth.js"></script>
+    <script src="static/js/chat.js"></script>
+    <script src="static/js/templates.js"></script>

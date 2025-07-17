@@ -1,0 +1,48 @@
+# デフォルトページ設定
+DirectoryIndex index.php index.html
+
+# PHP設定
+php_value max_execution_time 180
+php_value max_input_time 180
+php_value memory_limit 256M
+
+# Ensure SQLite database is not accessible
+<Files "*.db">
+    Order Allow,Deny
+    Deny from all
+</Files>
+
+# Prevent direct access to library files
+<Directory "lib">
+    Order Allow,Deny
+    Deny from all
+</Directory>
+
+# Prevent direct access to private directory
+<Directory "private">
+    Order Allow,Deny
+    Deny from all
+</Directory>
+
+# Prevent direct access to templates directory
+<Directory "templates">
+    Order Allow,Deny
+    Deny from all
+</Directory>
+
+# Prevent direct access to PHP library files
+<FilesMatch "^(database|auth|ollama_client)\.php$">
+    Order Allow,Deny
+    Deny from all
+</FilesMatch>
+
+# Enable CORS for development
+Header add Access-Control-Allow-Origin "*"
+Header add Access-Control-Allow-Headers "origin, x-requested-with, content-type"
+Header add Access-Control-Allow-Methods "PUT, GET, POST, DELETE, OPTIONS"
+
+# APIエンドポイントは直接アクセス可能にする
+<Files "api.php">
+    Order Allow,Deny
+    Allow from all
+</Files>
