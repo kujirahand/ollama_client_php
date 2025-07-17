@@ -8,7 +8,7 @@ class OllamaClient {
         $this->baseUrl = rtrim($baseUrl, '/');
     }
     
-    public function chat($model, $messages, $stream = false) {
+    public function chat($model, $messages, $stream = false, $systemPrompt = '') {
         $url = $this->baseUrl . '/api/chat';
         
         // $messagesが文字列の場合は従来の形式に変換
@@ -19,6 +19,14 @@ class OllamaClient {
                     'content' => $messages
                 ]
             ];
+        }
+        
+        // システムプロンプトが設定されている場合は先頭に追加
+        if (!empty($systemPrompt)) {
+            array_unshift($messages, [
+                'role' => 'system',
+                'content' => $systemPrompt
+            ]);
         }
         
         $data = [
@@ -34,8 +42,8 @@ class OllamaClient {
         }
     }
     
-    public function chatStream($model, $messages) {
-        return $this->chat($model, $messages, true);
+    public function chatStream($model, $messages, $systemPrompt = '') {
+        return $this->chat($model, $messages, true, $systemPrompt);
     }
     
     public function listModels() {

@@ -3,6 +3,7 @@
 set_time_limit(180);
 ini_set('max_execution_time', 180);
 
+require_once 'config.php';
 require_once 'lib/database.php';
 require_once 'lib/auth.php';
 require_once 'lib/ollama_client.php';
@@ -72,8 +73,9 @@ try {
                 $defaultModel = $input['default_model'] ?? '';
                 $ollamaUrl = $input['ollama_url'] ?? '';
                 $newPassword = $input['new_password'] ?? null;
+                $systemPrompt = $input['system_prompt'] ?? '';
                 
-                if ($auth->updateUser($auth->getUserId(), $username, $defaultModel, $ollamaUrl, $newPassword)) {
+                if ($auth->updateUser($auth->getUserId(), $username, $defaultModel, $ollamaUrl, $newPassword, $systemPrompt)) {
                     echo json_encode(['success' => true, 'message' => 'ユーザー情報を更新しました']);
                 } else {
                     echo json_encode(['success' => false, 'message' => '更新に失敗しました']);
@@ -104,14 +106,14 @@ try {
                 try {
                     if ($stream) {
                         // ストリーミングモード
-                        $ollamaClient->chatStream($model, $chatInput);
+                        $ollamaClient->chatStream($model, $chatInput, $user['system_prompt'] ?? '');
                         
                         // ストリーミング完了後、履歴に保存するために一度通常のチャットを実行
                         // (実際の実装では、ストリーミング中に受信したデータを蓄積して保存する方が良い)
                         exit;
                     } else {
                         // 通常モード
-                        $response = $ollamaClient->chat($model, $chatInput);
+                        $response = $ollamaClient->chat($model, $chatInput, false, $user['system_prompt'] ?? '');
                         $llmResponse = $response['message']['content'] ?? '';
                         
                         // 最新のユーザーメッセージを取得（履歴保存用）
@@ -227,7 +229,7 @@ try {
                 
                 try {
                     // ストリーミングモードで実行
-                    $ollamaClient->chatStream($model, $chatInput);
+                    $ollamaClient->chatStream($model, $chatInput, $user['system_prompt'] ?? '');
                 } catch (Exception $e) {
                     echo "エラー: " . $e->getMessage();
                 }

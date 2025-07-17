@@ -7,6 +7,7 @@
  */
 
 // ライブラリの読み込み
+require_once 'config.php';
 require_once 'lib/template.php';
 
 // セキュリティヘッダーの設定

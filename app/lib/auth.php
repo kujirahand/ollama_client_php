@@ -52,38 +52,38 @@ class Auth {
         $passwordHash = hash('sha256', $password . $salt);
         
         $stmt = $this->db->prepare("
-            INSERT INTO users (username, password_hash, salt, default_model, ollama_url) 
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO users (username, password_hash, salt, default_model, ollama_url, system_prompt) 
+            VALUES (?, ?, ?, ?, ?, ?)
         ");
         
-        return $stmt->execute([$username, $passwordHash, $salt, 'llama3.2', 'http://localhost:11434']);
+        return $stmt->execute([$username, $passwordHash, $salt, 'llama3.2', 'http://localhost:11434', '']);
     }
     
-    public function updateUser($userId, $username, $defaultModel, $ollamaUrl, $newPassword = null) {
+    public function updateUser($userId, $username, $defaultModel, $ollamaUrl, $newPassword = null, $systemPrompt = null) {
         if ($newPassword) {
             $salt = bin2hex(random_bytes(16));
             $passwordHash = hash('sha256', $newPassword . $salt);
             
             $stmt = $this->db->prepare("
                 UPDATE users 
-                SET username = ?, default_model = ?, ollama_url = ?, password_hash = ?, salt = ?, updated_at = CURRENT_TIMESTAMP 
+                SET username = ?, default_model = ?, ollama_url = ?, password_hash = ?, salt = ?, system_prompt = ?, updated_at = CURRENT_TIMESTAMP 
                 WHERE id = ?
             ");
             
-            return $stmt->execute([$username, $defaultModel, $ollamaUrl, $passwordHash, $salt, $userId]);
+            return $stmt->execute([$username, $defaultModel, $ollamaUrl, $passwordHash, $salt, $systemPrompt, $userId]);
         } else {
             $stmt = $this->db->prepare("
                 UPDATE users 
-                SET username = ?, default_model = ?, ollama_url = ?, updated_at = CURRENT_TIMESTAMP 
+                SET username = ?, default_model = ?, ollama_url = ?, system_prompt = ?, updated_at = CURRENT_TIMESTAMP 
                 WHERE id = ?
             ");
             
-            return $stmt->execute([$username, $defaultModel, $ollamaUrl, $userId]);
+            return $stmt->execute([$username, $defaultModel, $ollamaUrl, $systemPrompt, $userId]);
         }
     }
     
     public function getUser($userId) {
-        $stmt = $this->db->prepare("SELECT id, username, default_model, ollama_url FROM users WHERE id = ?");
+        $stmt = $this->db->prepare("SELECT id, username, default_model, ollama_url, system_prompt FROM users WHERE id = ?");
         $stmt->execute([$userId]);
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }

@@ -82,20 +82,22 @@ cd ollama_client_php
 
 APIは`app/api.php`で実装されており、以下のエンドポイントが利用可能です：
 
-- `POST /api/login` - ログイン
-- `POST /api/logout` - ログアウト
-- `POST /api/register` - ユーザー登録
-- `GET /api/user` - ユーザー情報取得
-- `PUT /api/user` - ユーザー情報更新
-- `GET /api/chat` - チャット履歴取得
-- `POST /api/chat` - チャット送信
-- `GET /api/models` - モデル一覧取得
-- `POST /api/model-info` - モデル詳細情報取得
-- `GET /api/templates` - テンプレート一覧取得
-- `POST /api/templates` - テンプレート作成
-- `PUT /api/templates` - テンプレート更新
-- `DELETE /api/templates` - テンプレート削除
-- `GET /api/ollama-status` - Ollama接続状態確認
+- `POST api.php?action=login` - ログイン
+- `POST api.php?action=logout` - ログアウト
+- `POST api.php?action=register` - ユーザー登録
+- `GET api.php?action=user` - ユーザー情報取得
+- `PUT api.php?action=user` - ユーザー情報更新
+- `GET api.php?action=chat` - チャット履歴取得
+- `POST api.php?action=chat` - チャット送信
+- `POST api.php?action=chat-stream` - チャットストリーミング
+- `POST api.php?action=save-chat` - チャット履歴保存
+- `GET api.php?action=models` - モデル一覧取得
+- `POST api.php?action=model-info` - モデル詳細情報取得
+- `GET api.php?action=templates` - テンプレート一覧取得
+- `POST api.php?action=templates` - テンプレート作成
+- `PUT api.php?action=templates` - テンプレート更新
+- `DELETE api.php?action=templates` - テンプレート削除
+- `GET api.php?action=ollama-status` - Ollama接続状態確認
 
 ## データベース構造
 

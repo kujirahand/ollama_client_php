@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS users (
     salt TEXT NOT NULL,
     default_model TEXT DEFAULT '',
     ollama_url TEXT DEFAULT 'http://localhost:11434',
+    system_prompt TEXT DEFAULT '',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
