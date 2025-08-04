@@ -77,6 +77,14 @@ try {
         case 'models':
             $config['title'] = 'モデル設定 - Ollama Chat Client';
             break;
+        case 'history':
+            $config['title'] = 'チャット履歴 - Ollama Chat Client';
+            if (!isset($_SESSION['user_id'])) {
+                header('Location: index.php?page=login');
+                exit;
+            }
+            $template->assign('show_user_settings', true);
+            break;
         case 'user':
             $config['title'] = 'ユーザー設定 - Ollama Chat Client';
             break;

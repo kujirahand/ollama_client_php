@@ -213,12 +213,19 @@ function initializeCommonElements() {
 
 // 認証状態をチェックする関数
 async function checkAuth() {
+    console.log('Checking authentication...');
     try {
         const response = await fetch('api.php?action=user');
+        console.log('Auth check response status:', response.status);
+        
         if (response.ok) {
             const data = await response.json();
-            return data.success && data.user;
+            console.log('Auth check data:', data);
+            const isAuthenticated = data.success && data.user;
+            console.log('Is authenticated:', isAuthenticated);
+            return isAuthenticated;
         }
+        console.log('Auth check failed - response not ok');
         return false;
     } catch (error) {
         console.error('認証チェックエラー:', error);

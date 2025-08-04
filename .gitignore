@@ -1,4 +1,4 @@
 .DS_Store
 **/.DS_Store
 app/private/*
-
+app/test/test_results

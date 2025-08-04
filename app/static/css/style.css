@@ -32,6 +32,27 @@ body {
     padding: 10px;
 }
 
+/* ナビゲーションリンク */
+.nav-links {
+    display: flex;
+    gap: 15px;
+    margin-top: 10px;
+}
+
+.nav-link {
+    color: #667eea;
+    text-decoration: none;
+    font-weight: 500;
+    padding: 5px 10px;
+    border-radius: 4px;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.nav-link:hover {
+    background-color: #f0f4ff;
+    color: #4c5fc7;
+}
+
 .header {
     background: rgba(255, 255, 255, 0.95);
     padding: 12px 16px;

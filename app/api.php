@@ -26,6 +26,23 @@ $input = json_decode(file_get_contents('php://input'), true) ?? [];
 
 try {
     switch ($action) {
+        case 'hello':
+            // シンプルな動作確認用API
+            $response = [
+                'success' => true,
+                'message' => 'Hello, API is working!',
+                'timestamp' => date('Y-m-d H:i:s'),
+                'method' => $method,
+                'request_info' => [
+                    'ip' => $_SERVER['REMOTE_ADDR'] ?? 'unknown',
+                    'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? 'unknown',
+                    'input' => $input
+                ]
+            ];
+            
+            echo json_encode($response);
+            break;
+            
         case 'login':
             if ($method === 'POST') {
                 $username = $input['username'] ?? '';
@@ -96,6 +113,31 @@ try {
                 $stream = $input['stream'] ?? false;
                 $userId = $auth->getUserId();
                 
+                if ($message == '/clear') {
+                    // チャット履歴を削除せずに、クリアメッセージだけを追加
+                    $pdo = $database->getPDO();
+                    
+                    // モデルが空の場合はユーザーのデフォルトモデルを使用
+                    if (empty($model)) {
+                        $user = $auth->getUser($userId);
+                        $model = $user['default_model'] ?? 'unknown';
+                    }
+                    
+                    // コマンド自体を履歴に追加
+                    $stmt = $pdo->prepare("
+                        INSERT INTO chat_history (user_id, model, messages) 
+                        VALUES (?, ?, ?)
+                    ");
+                    $clearMessage = json_encode([
+                        ['role' => 'user', 'content' => $message],
+                        ['role' => 'assistant', 'content' => 'チャット履歴をクリアしました']
+                    ]);
+                    $stmt->execute([$userId, $model, $clearMessage]);
+                    
+                    echo json_encode(['success' => true, 'message' => 'チャット履歴をクリアしました', 'response' => 'チャット履歴をクリアしました']);
+                    exit;
+                }
+
                 // ユーザー情報取得（Ollama URL取得のため）
                 $user = $auth->getUser($userId);
                 $ollamaClient = new OllamaClient($user['ollama_url']);
@@ -116,32 +158,67 @@ try {
                         $response = $ollamaClient->chat($model, $chatInput, false, $user['system_prompt'] ?? '');
                         $llmResponse = $response['message']['content'] ?? '';
                         
-                        // 最新のユーザーメッセージを取得（履歴保存用）
-                        $userMessage = '';
-                        if (is_array($chatInput)) {
-                            // messages配列から最後のuserメッセージを取得
-                            for ($i = count($chatInput) - 1; $i >= 0; $i--) {
-                                if ($chatInput[$i]['role'] === 'user') {
-                                    $userMessage = $chatInput[$i]['content'];
-                                    break;
-                                }
+                        // メッセージ履歴用の配列を準備
+                        $messagesHistory = [];
+                        
+                        // history_idが指定されていれば既存の履歴を取得して追加
+                        $historyId = $input['history_id'] ?? null;
+                        $existingMessages = [];
+                        
+                        if ($historyId) {
+                            // 既存の履歴があれば取得
+                            $stmt = $pdo->prepare("SELECT messages FROM chat_history WHERE id = ? AND user_id = ?");
+                            $stmt->execute([$historyId, $userId]);
+                            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+                            
+                            if ($result && !empty($result['messages'])) {
+                                $existingMessages = json_decode($result['messages'], true) ?? [];
+                                $messagesHistory = $existingMessages;
                             }
-                        } else {
-                            $userMessage = $chatInput;
                         }
+                        
+                        // 新しいメッセージを追加
+                        if (is_array($chatInput)) {
+                            // 既にmessages形式の場合はそのまま追加
+                            $messagesHistory = array_merge($messagesHistory, $chatInput);
+                        } else {
+                            // 文字列の場合はuser roleとして追加
+                            $messagesHistory[] = ['role' => 'user', 'content' => $chatInput];
+                        }
+                        
+                        // アシスタントの応答を追加
+                        $messagesHistory[] = ['role' => 'assistant', 'content' => $llmResponse];
                         
                         // チャット履歴を保存
                         $pdo = $database->getPDO();
-                        $stmt = $pdo->prepare("
-                            INSERT INTO chat_history (user_id, model_name, user_message, llm_response) 
-                            VALUES (?, ?, ?, ?)
-                        ");
-                        $stmt->execute([$userId, $model, $userMessage, $llmResponse]);
+                        
+                        if ($historyId) {
+                            // 既存の履歴を更新
+                            $stmt = $pdo->prepare("
+                                UPDATE chat_history 
+                                SET model = ?, messages = ?, updated_at = CURRENT_TIMESTAMP
+                                WHERE id = ? AND user_id = ?
+                            ");
+                            $messagesJson = json_encode($messagesHistory);
+                            $stmt->execute([$model, $messagesJson, $historyId, $userId]);
+                            
+                            $id = $historyId;
+                        } else {
+                            // 新規履歴を作成
+                            $stmt = $pdo->prepare("
+                                INSERT INTO chat_history (user_id, model, messages) 
+                                VALUES (?, ?, ?)
+                            ");
+                            $messagesJson = json_encode($messagesHistory);
+                            $stmt->execute([$userId, $model, $messagesJson]);
+                            
+                            $id = $pdo->lastInsertId();
+                        }
                         
                         echo json_encode([
                             'success' => true, 
                             'response' => $llmResponse,
-                            'id' => $pdo->lastInsertId()
+                            'id' => $id
                         ]);
                     }
                 } catch (Exception $e) {
@@ -161,6 +238,13 @@ try {
                 ");
                 $stmt->execute([$userId, $limit]);
                 $history = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                
+                // messages フィールドを JSON からデコード
+                foreach ($history as &$entry) {
+                    if (isset($entry['messages'])) {
+                        $entry['messages'] = json_decode($entry['messages'], true);
+                    }
+                }
                 
                 echo json_encode(['success' => true, 'history' => array_reverse($history)]);
             }
@@ -218,6 +302,7 @@ try {
                 $model = $input['model'] ?? '';
                 $message = $input['message'] ?? '';
                 $messages = $input['messages'] ?? null;
+                $historyId = $input['history_id'] ?? null;
                 $userId = $auth->getUserId();
                 
                 // ユーザー情報取得（Ollama URL取得のため）
@@ -228,10 +313,55 @@ try {
                 $chatInput = $messages ?? $message;
                 
                 try {
+                    // 新規に履歴を作成するかどうか
+                    $createNewHistory = ($historyId === 'new' || $historyId === null);
+                    $pdo = $database->getPDO();
+                    
+                    if ($createNewHistory) {
+                        // 新規の履歴を作成
+                        // メッセージ履歴用の配列を準備
+                        $messagesHistory = [];
+                        
+                        // ユーザーのメッセージを追加
+                        if (is_array($chatInput)) {
+                            // 既にmessages形式の場合はそのまま追加
+                            $messagesHistory = $chatInput;
+                        } else {
+                            // 文字列の場合はuser roleとして追加
+                            $messagesHistory[] = ['role' => 'user', 'content' => $chatInput];
+                        }
+                        
+                        // 空のassistant応答を追加（ストリーミング用）
+                        $messagesHistory[] = ['role' => 'assistant', 'content' => ''];
+                        
+                        $stmt = $pdo->prepare("
+                            INSERT INTO chat_history (user_id, model, messages) 
+                            VALUES (?, ?, ?)
+                        ");
+                        $messagesJson = json_encode($messagesHistory);
+                        $stmt->execute([$userId, $model, $messagesJson]);
+                        
+                        // 新しい履歴IDをクライアントに送信
+                        $newId = $pdo->lastInsertId();
+                        header('X-History-ID: ' . $newId);
+                    } else if ($historyId) {
+                        // 既存の履歴IDをクライアントに送信
+                        header('X-History-ID: ' . $historyId);
+                    }
+                    
                     // ストリーミングモードで実行
                     $ollamaClient->chatStream($model, $chatInput, $user['system_prompt'] ?? '');
+                    
+                    // ストリーミングが完了した後はPHPの実行が終了するため、ここに到達しません
+                    
                 } catch (Exception $e) {
-                    echo "エラー: " . $e->getMessage();
+                    // Server-Sent Events形式でエラーを送信
+                    header('Content-Type: text/event-stream');
+                    header('Cache-Control: no-cache');
+                    header('Connection: keep-alive');
+                    echo "data: " . json_encode(['error' => $e->getMessage()]) . "\n\n";
+                    echo "data: [DONE]\n\n";
+                    flush();
                 }
             }
             break;
@@ -246,21 +376,49 @@ try {
                 $model = $input['model'] ?? '';
                 $userMessage = $input['user_message'] ?? '';
                 $llmResponse = $input['llm_response'] ?? '';
+                $historyId = $input['history_id'] ?? null;
+                $messagesArray = $input['messages'] ?? null;
                 $userId = $auth->getUserId();
                 
                 try {
-                    // チャット履歴を保存
+                    // チャット履歴を保存または更新
                     $pdo = $database->getPDO();
-                    $stmt = $pdo->prepare("
-                        INSERT INTO chat_history (user_id, model_name, user_message, llm_response) 
-                        VALUES (?, ?, ?, ?)
-                    ");
-                    $stmt->execute([$userId, $model, $userMessage, $llmResponse]);
+                    
+                    // メッセージ配列の処理
+                    if ($messagesArray) {
+                        // 既に配列が提供されている場合はそれを使用
+                        $messagesJson = json_encode($messagesArray);
+                    } else {
+                        // user_messageとllm_responseから配列を構築
+                        $messagesJson = json_encode([
+                            ['role' => 'user', 'content' => $userMessage],
+                            ['role' => 'assistant', 'content' => $llmResponse]
+                        ]);
+                    }
+                    
+                    if ($historyId) {
+                        // 既存の履歴を更新
+                        $stmt = $pdo->prepare("
+                            UPDATE chat_history 
+                            SET model = ?, messages = ?, updated_at = CURRENT_TIMESTAMP
+                            WHERE id = ? AND user_id = ?
+                        ");
+                        $stmt->execute([$model, $messagesJson, $historyId, $userId]);
+                        $id = $historyId;
+                    } else {
+                        // 新規履歴を作成
+                        $stmt = $pdo->prepare("
+                            INSERT INTO chat_history (user_id, model, messages) 
+                            VALUES (?, ?, ?)
+                        ");
+                        $stmt->execute([$userId, $model, $messagesJson]);
+                        $id = $pdo->lastInsertId();
+                    }
                     
                     echo json_encode([
                         'success' => true, 
                         'message' => 'チャット履歴を保存しました',
-                        'id' => $pdo->lastInsertId()
+                        'id' => $id
                     ]);
                 } catch (Exception $e) {
                     echo json_encode(['success' => false, 'message' => '保存エラー: ' . $e->getMessage()]);
@@ -345,6 +503,58 @@ try {
                     'available' => $isConnected, // ←ここをavailableに
                     'url' => $user['ollama_url']
                 ]);
+            }
+            break;
+            
+        case 'delete-chat-history':
+            if (!$auth->isLoggedIn()) {
+                echo json_encode(['success' => false, 'message' => 'ログインが必要です']);
+                break;
+            }
+            
+            if ($method === 'POST') {
+                $historyId = $input['history_id'] ?? null;
+                $userId = $auth->getUserId();
+                
+                if (!$historyId) {
+                    echo json_encode(['success' => false, 'message' => '履歴IDが指定されていません']);
+                    break;
+                }
+                
+                try {
+                    $pdo = $database->getPDO();
+                    $stmt = $pdo->prepare("DELETE FROM chat_history WHERE id = ? AND user_id = ?");
+                    $stmt->execute([$historyId, $userId]);
+                    
+                    if ($stmt->rowCount() > 0) {
+                        echo json_encode(['success' => true, 'message' => '履歴を削除しました']);
+                    } else {
+                        echo json_encode(['success' => false, 'message' => '履歴が見つからないか、削除権限がありません']);
+                    }
+                } catch (Exception $e) {
+                    echo json_encode(['success' => false, 'message' => '削除エラー: ' . $e->getMessage()]);
+                }
+            }
+            break;
+            
+        case 'delete-all-chat-history':
+            if (!$auth->isLoggedIn()) {
+                echo json_encode(['success' => false, 'message' => 'ログインが必要です']);
+                break;
+            }
+            
+            if ($method === 'POST') {
+                $userId = $auth->getUserId();
+                
+                try {
+                    $pdo = $database->getPDO();
+                    $stmt = $pdo->prepare("DELETE FROM chat_history WHERE user_id = ?");
+                    $stmt->execute([$userId]);
+                    
+                    echo json_encode(['success' => true, 'message' => '全ての履歴を削除しました', 'count' => $stmt->rowCount()]);
+                } catch (Exception $e) {
+                    echo json_encode(['success' => false, 'message' => '削除エラー: ' . $e->getMessage()]);
+                }
             }
             break;
             

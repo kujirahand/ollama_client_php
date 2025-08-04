@@ -21,7 +21,7 @@ class OllamaClient {
             ];
         }
         
-        // システムプロンプトが設定されている場合は先頭に追加
+        // システムプロンプトが指定されている場合は追加
         if (!empty($systemPrompt)) {
             array_unshift($messages, [
                 'role' => 'system',
@@ -68,7 +68,7 @@ class OllamaClient {
         set_time_limit(300); // 5分
         
         // ストリーミング用のヘッダーを設定
-        header('Content-Type: text/plain; charset=utf-8');
+        header('Content-Type: text/event-stream');
         header('Cache-Control: no-cache');
         header('Connection: keep-alive');
         header('X-Accel-Buffering: no'); // Nginxでのバッファリング無効
@@ -77,6 +77,10 @@ class OllamaClient {
         while (ob_get_level()) {
             ob_end_clean();
         }
+        
+        // デバッグ用に初期メッセージを送信
+        echo "data: " . json_encode(['content' => '', 'status' => 'connecting']) . "\n\n";
+        flush();
         
         $ch = curl_init();
         
@@ -92,20 +96,32 @@ class OllamaClient {
                     $line = trim($line);
                     if (empty($line)) continue;
                     
-                    $json = json_decode($line, true);
-                    if ($json && isset($json['message']['content'])) {
-                        echo $json['message']['content'];
-                        if (ob_get_level() == 0) {
+                    try {
+                        $json = json_decode($line, true);
+                        if ($json === null && json_last_error() !== JSON_ERROR_NONE) {
+                            // JSONエラー時はそのままデータを出力
+                            echo "data: " . json_encode(['error' => 'JSON parse error', 'raw' => $line]) . "\n\n";
                             flush();
-                        } else {
-                            ob_flush();
+                            continue;
+                        }
+                        
+                        if ($json && isset($json['message']['content'])) {
+                            // SSE形式でデータ送信
+                            echo "data: " . json_encode([
+                                'content' => $json['message']['content'],
+                                'done' => isset($json['done']) && $json['done']
+                            ]) . "\n\n";
                             flush();
                         }
-                    }
-                    
-                    // 完了チェック
-                    if ($json && isset($json['done']) && $json['done']) {
-                        break;
+                        
+                        // 完了チェック
+                        if ($json && isset($json['done']) && $json['done']) {
+                            echo "data: [DONE]\n\n";
+                            flush();
+                        }
+                    } catch (Exception $e) {
+                        echo "data: " . json_encode(['error' => $e->getMessage()]) . "\n\n";
+                        flush();
                     }
                 }
                 return strlen($data);
@@ -119,6 +135,9 @@ class OllamaClient {
         if (curl_errno($ch)) {
             $error = curl_error($ch);
             curl_close($ch);
+            echo "data: " . json_encode(['error' => "cURL Error: $error"]) . "\n\n";
+            echo "data: [DONE]\n\n";
+            flush();
             throw new Exception("cURL Error: $error");
         }
         
@@ -126,8 +145,16 @@ class OllamaClient {
         curl_close($ch);
         
         if ($httpCode !== 200) {
+            echo "data: " . json_encode(['error' => "HTTP Error: $httpCode"]) . "\n\n";
+            echo "data: [DONE]\n\n";
+            flush();
             throw new Exception("HTTP Error: $httpCode");
         }
+        
+        // 終了メッセージを送信
+        echo "data: " . json_encode(['content' => '', 'done' => true]) . "\n\n";
+        echo "data: [DONE]\n\n";
+        flush();
         
         return true;
     }

@@ -17,6 +17,11 @@
                     <span class="status-indicator" id="statusIndicator"></span>
                     <span>Ollama: <span id="ollamaStatus">接続確認中...</span></span>
                 </div>
+                <div class="nav-links">
+                    <a href="index.php?page=chat" class="nav-link">チャット</a>
+                    <a href="index.php?page=history" class="nav-link">履歴</a>
+                    {if:show_user_settings}<a href="index.php?page=user" class="nav-link">設定</a>{/if:show_user_settings}
+                </div>
                 {if:show_logout}<button class="btn btn-secondary" onclick="logout()">ログアウト</button>{/if:show_logout}
             </div>
         </div>
